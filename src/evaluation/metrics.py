@@ -79,9 +79,11 @@ def regression_metrics(y_true, y_pred):
     
     return metrics
 
+
+
 def error_analysis(y_true, y_pred, X, feature_names=None):
     """
-    Perform error analysis
+    Perform error analysis with better type handling
     
     Parameters:
     -----------
@@ -102,6 +104,10 @@ def error_analysis(y_true, y_pred, X, feature_names=None):
     if feature_names is None:
         feature_names = [f"Feature_{i}" for i in range(X.shape[1])]
     
+    # Convert to numpy arrays
+    y_true = np.asarray(y_true)
+    y_pred = np.asarray(y_pred)
+    
     # Find misclassified samples
     errors = y_true != y_pred
     error_indices = np.where(errors)[0]
@@ -120,26 +126,57 @@ def error_analysis(y_true, y_pred, X, feature_names=None):
     # If there are errors, analyze their characteristics
     if len(error_indices) > 0:
         # Convert X to numpy array if it's a DataFrame
-        X_array = X.values if hasattr(X, 'values') else X
+        if hasattr(X, 'values'):
+            X_array = X.values
+        else:
+            X_array = np.asarray(X)
+        
+        # Ensure X_array is numeric
+        if not np.issubdtype(X_array.dtype, np.number):
+            try:
+                X_array = X_array.astype(np.float64)
+            except:
+                print("Warning: Could not convert features to numeric type.")
+                return results
         
         # Get statistics for each feature in correctly and incorrectly classified samples
         correct_indices = np.where(~errors)[0]
         
         feature_stats = {}
+        
+        # Process each feature
         for i, name in enumerate(feature_names):
-            feature_stats[name] = {
-                'correct_mean': X_array[correct_indices, i].mean(),
-                'correct_std': X_array[correct_indices, i].std(),
-                'error_mean': X_array[error_indices, i].mean(),
-                'error_std': X_array[error_indices, i].std(),
-                'fp_mean': X_array[false_positives, i].mean() if len(false_positives) > 0 else np.nan,
-                'fn_mean': X_array[false_negatives, i].mean() if len(false_negatives) > 0 else np.nan
-            }
+            # Safely calculate means with try-except
+            try:
+                correct_mean = X_array[correct_indices, i].mean() if len(correct_indices) > 0 else np.nan
+                correct_std = X_array[correct_indices, i].std() if len(correct_indices) > 0 else np.nan
+                error_mean = X_array[error_indices, i].mean() if len(error_indices) > 0 else np.nan
+                error_std = X_array[error_indices, i].std() if len(error_indices) > 0 else np.nan
+                fp_mean = X_array[false_positives, i].mean() if len(false_positives) > 0 else np.nan
+                fn_mean = X_array[false_negatives, i].mean() if len(false_negatives) > 0 else np.nan
+                
+                feature_stats[name] = {
+                    'correct_mean': correct_mean,
+                    'correct_std': correct_std,
+                    'error_mean': error_mean,
+                    'error_std': error_std,
+                    'fp_mean': fp_mean,
+                    'fn_mean': fn_mean
+                }
+            except Exception as e:
+                print(f"Error calculating statistics for feature '{name}': {e}")
+                feature_stats[name] = {
+                    'correct_mean': np.nan,
+                    'correct_std': np.nan,
+                    'error_mean': np.nan,
+                    'error_std': np.nan,
+                    'fp_mean': np.nan,
+                    'fn_mean': np.nan
+                }
         
         results['feature_stats'] = feature_stats
     
     return results
-
 def compare_models(models, X_test, y_test):
     """
     Compare multiple models
