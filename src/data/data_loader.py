@@ -66,6 +66,7 @@ class ChicagoCrimeDataLoader:
             if save:
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
                 filename = os.path.join(self.data_dir, f"chicago_theft_data_{timestamp}.csv")
+                df = df.dropna(subset=['latitude', 'longitude'])
                 df.to_csv(filename, index=False)
                 print(f"Data saved to {filename}")
             
